@@ -1,0 +1,6 @@
+{
+  "name": "Antigravity",
+  "description": "Agentic development workspace, Agent Manager, code editor, artifacts review, and SDK configurator for Android.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

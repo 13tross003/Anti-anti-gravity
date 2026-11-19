@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "AgentProfile": {
+      "title": "AgentProfile",
+      "description": "User-scoped Google Antigravity SDK LocalAgentConfig, theme preference, and browser actuation rules.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "Developer display name." },
+        "preferredModel": { "type": "string", "enum": ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-4-argon"] },
+        "agentMode": { "type": "string", "enum": ["PLANNING", "FAST"] },
+        "readOnlyMode": { "type": "boolean" },
+        "enabledTools": { "type": "array", "description": "Enabled BuiltinTools identifiers." },
+        "blockDestructiveHooks": { "type": "boolean" },
+        "darkTheme": { "type": "boolean" },
+        "browserAllowlist": { "type": "array", "description": "Allowed domains for the Browser Subagent." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Client writes FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Client writes FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "displayName", "preferredModel", "agentMode", "readOnlyMode", "enabledTools", "blockDestructiveHooks", "darkTheme", "browserAllowlist", "createdAt", "updatedAt"]
+    },
+    "Workspace": {
+      "title": "Workspace",
+      "description": "A project workspace containing source files, plans, and agent sessions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "language": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "description", "language", "createdAt", "updatedAt"]
+    },
+    "WorkspaceFile": {
+      "title": "WorkspaceFile",
+      "description": "An editable code or documentation file inside a workspace.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "path": { "type": "string" },
+        "language": { "type": "string" },
+        "content": { "type": "string" },
+        "previousContent": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "workspaceId", "path", "language", "content", "previousContent", "createdAt", "updatedAt"]
+    },
+    "AgentSession": {
+      "title": "AgentSession",
+      "description": "An autonomous Antigravity agent session tracked in Agent Manager.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "workspaceName": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string", "enum": ["IDLE", "RUNNING", "NEEDS_REVIEW", "COMPLETED", "ERROR"] },
+        "mode": { "type": "string", "enum": ["PLANNING", "FAST"] },
+        "modelName": { "type": "string" },
+        "summary": { "type": "string" },
+        "tasksTotal": { "type": "integer" },
+        "tasksCompleted": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "workspaceId", "workspaceName", "title", "status", "mode", "modelName", "summary", "tasksTotal", "tasksCompleted", "createdAt", "updatedAt"]
+    },
+    "AgentMessage": {
+      "title": "AgentMessage",
+      "description": "A turn or tool execution record inside an agent session.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "role": { "type": "string", "enum": ["USER", "AGENT", "TOOL", "SYSTEM"] },
+        "content": { "type": "string" },
+        "toolName": { "type": "string" },
+        "toolStatus": { "type": "string", "enum": ["NONE", "PENDING", "SUCCESS", "BLOCKED", "ERROR"] },
+        "artifactId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "sessionId", "role", "content", "toolName", "toolStatus", "artifactId", "createdAt"]
+    },
+    "Artifact": {
+      "title": "Artifact",
+      "description": "A tangible deliverable produced by an Antigravity agent (plan, task list, diff, walkthrough, or HTML preview).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "sessionId": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": { "type": "string", "enum": ["PLAN", "TASK_LIST", "DIFF", "WALKTHROUGH", "HTML_PREVIEW"] },
+        "content": { "type": "string" },
+        "approvalStatus": { "type": "string", "enum": ["PENDING", "APPROVED", "CHANGES_REQUESTED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "workspaceId", "sessionId", "title", "kind", "content", "approvalStatus", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/AgentProfile" },
+      "description": "Authenticated user's Antigravity SDK LocalAgentConfig and UI settings."
+    },
+    "/users/{userId}/workspaces/{workspaceId}": {
+      "schema": { "$ref": "#/entities/Workspace" },
+      "description": "User's development workspaces."
+    },
+    "/users/{userId}/workspaces/{workspaceId}/files/{fileId}": {
+      "schema": { "$ref": "#/entities/WorkspaceFile" },
+      "description": "Files belonging to a workspace."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/AgentSession" },
+      "description": "Antigravity Agent Manager sessions."
+    },
+    "/users/{userId}/sessions/{sessionId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/AgentMessage" },
+      "description": "Conversation turns and tool execution logs for a session."
+    },
+    "/users/{userId}/artifacts/{artifactId}": {
+      "schema": { "$ref": "#/entities/Artifact" },
+      "description": "Generated implementation plans, diffs, task lists, walkthroughs, and HTML previews."
+    }
+  }
+}

@@ -1,0 +1,263 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidAgentProfile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.preferredModel in ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-4-argon'] &&
+             data.agentMode in ['PLANNING', 'FAST'] &&
+             data.readOnlyMode is bool &&
+             data.enabledTools is list && data.enabledTools.size() <= 10 &&
+             (data.enabledTools.size() == 0 || data.enabledTools[0] is string) &&
+             data.blockDestructiveHooks is bool &&
+             data.darkTheme is bool &&
+             data.browserAllowlist is list && data.browserAllowlist.size() <= 20 &&
+             (data.browserAllowlist.size() == 0 || data.browserAllowlist[0] is string);
+    }
+
+    function isValidWorkspace(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.description is string && data.description.size() <= 300 &&
+             data.language is string && data.language.size() >= 1 && data.language.size() <= 40;
+    }
+
+    function isValidWorkspaceFile(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.workspaceId is string && data.workspaceId.size() >= 1 && data.workspaceId.size() <= 128 &&
+             data.path is string && data.path.size() >= 1 && data.path.size() <= 200 &&
+             data.language is string && data.language.size() >= 1 && data.language.size() <= 30 &&
+             data.content is string && data.content.size() <= 100000 &&
+             data.previousContent is string && data.previousContent.size() <= 100000;
+    }
+
+    function isValidAgentSession(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.workspaceId is string && data.workspaceId.size() >= 1 && data.workspaceId.size() <= 128 &&
+             data.workspaceName is string && data.workspaceName.size() >= 1 && data.workspaceName.size() <= 80 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.status in ['IDLE', 'RUNNING', 'NEEDS_REVIEW', 'COMPLETED', 'ERROR'] &&
+             data.mode in ['PLANNING', 'FAST'] &&
+             data.modelName is string && data.modelName.size() >= 1 && data.modelName.size() <= 60 &&
+             data.summary is string && data.summary.size() <= 500 &&
+             data.tasksTotal is int && data.tasksTotal >= 0 && data.tasksTotal <= 100 &&
+             data.tasksCompleted is int && data.tasksCompleted >= 0 && data.tasksCompleted <= 100;
+    }
+
+    function isValidAgentMessage(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.sessionId is string && data.sessionId.size() >= 1 && data.sessionId.size() <= 128 &&
+             data.role in ['USER', 'AGENT', 'TOOL', 'SYSTEM'] &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 100000 &&
+             data.toolName is string && data.toolName.size() <= 60 &&
+             data.toolStatus in ['NONE', 'PENDING', 'SUCCESS', 'BLOCKED', 'ERROR'] &&
+             data.artifactId is string && data.artifactId.size() <= 128;
+    }
+
+    function isValidArtifact(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.workspaceId is string && data.workspaceId.size() >= 1 && data.workspaceId.size() <= 128 &&
+             data.sessionId is string && data.sessionId.size() >= 1 && data.sessionId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.kind in ['PLAN', 'TASK_LIST', 'DIFF', 'WALKTHROUGH', 'HTML_PREVIEW'] &&
+             data.content is string && data.content.size() <= 100000 &&
+             data.approvalStatus in ['PENDING', 'APPROVED', 'CHANGES_REQUESTED'];
+    }
+
+    match /users/{userId} {
+      allow get, list: if isOwner(userId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().userId == userId &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'preferredModel', 'agentMode',
+                         'readOnlyMode', 'enabledTools', 'blockDestructiveHooks',
+                         'darkTheme', 'browserAllowlist', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'preferredModel', 'agentMode',
+                         'readOnlyMode', 'enabledTools', 'blockDestructiveHooks',
+                         'darkTheme', 'browserAllowlist', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       isValidAgentProfile(incoming());
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidAgentProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName', 'preferredModel', 'agentMode', 'readOnlyMode',
+                         'enabledTools', 'blockDestructiveHooks', 'darkTheme',
+                         'browserAllowlist', 'updatedAt'
+                       ]);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /workspaces/{workspaceId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(workspaceId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll(['userId', 'name', 'description', 'language', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'description', 'language', 'createdAt', 'updatedAt']) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidWorkspace(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(workspaceId) &&
+                         isValidWorkspace(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'language', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(workspaceId);
+
+        match /files/{fileId} {
+          allow get, list: if isOwner(userId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(workspaceId) &&
+                           isValidId(fileId) &&
+                           incoming().userId == userId &&
+                           incoming().workspaceId == workspaceId &&
+                           incoming().keys().hasAll(['userId', 'workspaceId', 'path', 'language', 'content', 'previousContent', 'createdAt', 'updatedAt']) &&
+                           incoming().keys().hasOnly(['userId', 'workspaceId', 'path', 'language', 'content', 'previousContent', 'createdAt', 'updatedAt']) &&
+                           incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                           incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                           isValidWorkspaceFile(incoming()) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/workspaces/$(workspaceId));
+
+          allow update: if isOwner(userId) &&
+                           isValidId(workspaceId) &&
+                           isValidId(fileId) &&
+                           isValidWorkspaceFile(incoming()) &&
+                           incoming().userId == existing().userId &&
+                           incoming().workspaceId == existing().workspaceId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['path', 'language', 'content', 'previousContent', 'updatedAt']);
+
+          allow delete: if isOwner(userId) && isValidId(workspaceId) && isValidId(fileId);
+        }
+      }
+
+      match /sessions/{sessionId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(sessionId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'workspaceId', 'workspaceName', 'title', 'status',
+                           'mode', 'modelName', 'summary', 'tasksTotal', 'tasksCompleted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'workspaceId', 'workspaceName', 'title', 'status',
+                           'mode', 'modelName', 'summary', 'tasksTotal', 'tasksCompleted',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidAgentSession(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(sessionId) &&
+                         isValidAgentSession(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'status', 'mode', 'modelName', 'summary',
+                           'tasksTotal', 'tasksCompleted', 'updatedAt'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(sessionId);
+
+        match /messages/{messageId} {
+          allow get, list: if isOwner(userId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(sessionId) &&
+                           isValidId(messageId) &&
+                           incoming().userId == userId &&
+                           incoming().sessionId == sessionId &&
+                           incoming().keys().hasAll(['userId', 'sessionId', 'role', 'content', 'toolName', 'toolStatus', 'artifactId', 'createdAt']) &&
+                           incoming().keys().hasOnly(['userId', 'sessionId', 'role', 'content', 'toolName', 'toolStatus', 'artifactId', 'createdAt']) &&
+                           incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                           isValidAgentMessage(incoming()) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/sessions/$(sessionId));
+
+          allow update: if false;
+
+          allow delete: if isOwner(userId) && isValidId(sessionId) && isValidId(messageId);
+        }
+      }
+
+      match /artifacts/{artifactId} {
+        allow get, list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(artifactId) &&
+                         incoming().userId == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'workspaceId', 'sessionId', 'title',
+                           'kind', 'content', 'approvalStatus', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'workspaceId', 'sessionId', 'title',
+                           'kind', 'content', 'approvalStatus', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         isValidArtifact(incoming());
+
+        allow update: if isOwner(userId) &&
+                         isValidId(artifactId) &&
+                         isValidArtifact(incoming()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().workspaceId == existing().workspaceId &&
+                         incoming().sessionId == existing().sessionId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp && incoming().updatedAt <= request.time &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'approvalStatus', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(artifactId);
+      }
+    }
+  }
+}
