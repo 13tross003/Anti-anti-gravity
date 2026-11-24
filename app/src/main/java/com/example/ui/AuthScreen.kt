@@ -55,7 +55,6 @@ import com.example.R
 import com.example.firebase.attemptAutoSignIn
 import com.example.firebase.onGoogleSignInClicked
 import com.example.ui.components.AntigravityLogoMark
-import com.example.ui.components.DownloadableApkComponent
 import com.example.ui.theme.AntigravityObsidian
 import com.example.ui.theme.AntigravitySurfaceElevated
 import com.example.ui.theme.GoogleBlueDark
@@ -194,8 +193,6 @@ fun AuthScreen(
                     title = "Browser Subagent & SDK Config",
                     subtitle = "Live /browser artifact previews and live google-antigravity LocalAgentConfig export.",
                 )
-                Spacer(Modifier.height(10.dp))
-                DownloadableApkComponent()
             }
 
             Spacer(Modifier.height(24.dp))

@@ -67,7 +67,6 @@ import com.example.model.SessionStatus
 import com.example.model.ToolStatus
 import com.example.model.UiState
 import com.example.model.Workspace
-import com.example.ui.components.DownloadableApkComponent
 import com.example.ui.components.SessionStatusChip
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.LocalAntigravityColors
@@ -299,13 +298,6 @@ fun AgentManagerScreen(
                 }
             }
         }
-
-        Spacer(Modifier.height(10.dp))
-
-        DownloadableApkComponent(
-            initialSourceInput = apkSourceInput,
-            onSourceInputChanged = onApkSourceChanged,
-        )
 
         Spacer(Modifier.height(12.dp))
 
