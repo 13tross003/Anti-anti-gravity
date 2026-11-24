@@ -1,15 +1,11 @@
 package com.example.ui
 
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,10 +20,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Android
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Public
 import androidx.compose.material3.Button
@@ -35,12 +29,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,6 +55,7 @@ import com.example.R
 import com.example.firebase.attemptAutoSignIn
 import com.example.firebase.onGoogleSignInClicked
 import com.example.ui.components.AntigravityLogoMark
+import com.example.ui.components.DownloadableApkComponent
 import com.example.ui.theme.AntigravityObsidian
 import com.example.ui.theme.AntigravitySurfaceElevated
 import com.example.ui.theme.GoogleBlueDark
@@ -204,18 +195,7 @@ fun AuthScreen(
                     subtitle = "Live /browser artifact previews and live google-antigravity LocalAgentConfig export.",
                 )
                 Spacer(Modifier.height(10.dp))
-                DownloadApkStarterCard(
-                    onOpenUrl = { url ->
-                        val clean = url.trim().let {
-                            if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it"
-                        }
-                        runCatching {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(clean)))
-                        }.onFailure {
-                            errorMessage = "Could not open download link: ${it.localizedMessage}"
-                        }
-                    },
-                )
+                DownloadableApkComponent()
             }
 
             Spacer(Modifier.height(24.dp))
@@ -344,122 +324,6 @@ private fun SurfaceCardFeature(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF9AA0A6),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadApkStarterCard(
-    onOpenUrl: (String) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    var releaseUrl by remember { mutableStateOf("https://github.com") }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("startup_apk_download_card"),
-        shape = RoundedCornerShape(14.dp),
-        color = AntigravitySurfaceElevated,
-        border = androidx.compose.foundation.BorderStroke(1.dp, GoogleGreenDark.copy(alpha = 0.45f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(GoogleGreenDark.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Android,
-                        contentDescription = "Signed Android APK Release",
-                        tint = GoogleGreenDark,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Android APK Release Download",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = "Open your signed APK release URL in the browser (zero-permission download).",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF9AA0A6),
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(
-                    onClick = { onOpenUrl(releaseUrl) },
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, GoogleGreenDark.copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("startup_download_apk_button"),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Download,
-                        contentDescription = null,
-                        tint = GoogleGreenDark,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Download APK in Browser",
-                        color = GoogleGreenDark,
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-                TextButton(
-                    onClick = { expanded = !expanded },
-                    modifier = Modifier
-                        .height(48.dp)
-                        .testTag("startup_edit_apk_url_button"),
-                ) {
-                    Text(
-                        text = if (expanded) "Hide URL" else "Set URL",
-                        color = GoogleBlueDark,
-                    )
-                }
-            }
-
-            AnimatedVisibility(visible = expanded) {
-                OutlinedTextField(
-                    value = releaseUrl,
-                    onValueChange = { releaseUrl = it },
-                    label = { Text("Signed APK / GitHub Release URL") },
-                    placeholder = { Text("https://github.com/owner/repo/releases/latest") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = GoogleGreenDark,
-                        unfocusedBorderColor = Color(0xFF3A3F4B),
-                        focusedLabelColor = GoogleGreenDark,
-                        unfocusedLabelColor = Color(0xFF9AA0A6),
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("startup_apk_url_input"),
                 )
             }
         }

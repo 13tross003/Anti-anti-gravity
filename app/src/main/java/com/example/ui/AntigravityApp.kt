@@ -349,6 +349,8 @@ private fun AntigravityWorkspaceShell(
                                     onToggleAgentMode = { mode ->
                                         viewModel.updateProfileConfig(agentMode = mode)
                                     },
+                                    apkSourceInput = apkBuildState.githubRepo,
+                                    onApkSourceChanged = viewModel::updateApkGitHubRepo,
                                 )
 
                                 AntigravityDestination.EDITOR -> EditorScreen(

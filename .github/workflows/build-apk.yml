@@ -2,15 +2,26 @@ name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    name: Build & Publish Signed APK
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,13 +32,19 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Set up Android SDK & accept licenses
+        uses: android-actions/setup-android@v3
+
       - name: Restore debug keystore
         run: |
           if [ ! -f debug.keystore ]; then
             if [ -f debug.keystore.base64 ]; then
-              base64 -d debug.keystore.base64 > debug.keystore
+              tr -d '\r\n' < debug.keystore.base64 | base64 -d > debug.keystore
             else
-              keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+              keytool -genkeypair -v -keystore debug.keystore \
+                -storepass android -alias androiddebugkey -keypass android \
+                -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
             fi
           fi
 
@@ -36,23 +53,38 @@ jobs:
         with:
           gradle-version: 9.3.1
 
-      - name: Build signed debug APK
-        run: gradle assembleDebug --no-daemon
+      - name: Build signed APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK output
+        run: |
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "Error: APK not found at $APK_PATH"
+            exit 1
+          fi
+          ls -lh "$APK_PATH"
 
       - name: Upload APK workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
 
       - name: Publish downloadable APK to GitHub Releases (latest)
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+          NOTES="Automated signed APK build from commit ${GITHUB_SHA::7} on branch ${GITHUB_REF_NAME}."
           if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest app/build/outputs/apk/debug/app-debug.apk --clobber
+            gh release upload latest "$APK_PATH" --clobber
+            gh release edit latest --title "Antigravity Android APK (Latest)" --notes "$NOTES"
           else
-            gh release create latest app/build/outputs/apk/debug/app-debug.apk \
+            gh release create latest "$APK_PATH" \
+              --target "${{ github.sha }}" \
               --title "Antigravity Android APK (Latest)" \
-              --notes "Automated signed debug APK build ready to install on Android."
+              --notes "$NOTES"
           fi

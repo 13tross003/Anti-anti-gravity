@@ -67,6 +67,7 @@ import com.example.model.SessionStatus
 import com.example.model.ToolStatus
 import com.example.model.UiState
 import com.example.model.Workspace
+import com.example.ui.components.DownloadableApkComponent
 import com.example.ui.components.SessionStatusChip
 import com.example.ui.theme.JetBrainsMonoFontFamily
 import com.example.ui.theme.LocalAntigravityColors
@@ -94,6 +95,8 @@ fun AgentManagerScreen(
     onSendFollowUp: (AgentSession, String, Boolean) -> Unit,
     onNavigateToArtifact: (String) -> Unit,
     onToggleAgentMode: (AgentMode) -> Unit,
+    apkSourceInput: String = "",
+    onApkSourceChanged: (String) -> Unit = {},
 ) {
     val sessions = (sessionsState as? UiState.Success)?.data.orEmpty()
     val activeSession = sessions.firstOrNull { it.id == selectedSessionId }
@@ -297,7 +300,14 @@ fun AgentManagerScreen(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(10.dp))
+
+        DownloadableApkComponent(
+            initialSourceInput = apkSourceInput,
+            onSourceInputChanged = onApkSourceChanged,
+        )
+
+        Spacer(Modifier.height(12.dp))
 
         // Inbox Filter Row
         Row(
